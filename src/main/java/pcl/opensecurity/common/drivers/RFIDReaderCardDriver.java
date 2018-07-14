@@ -118,6 +118,7 @@ public class RFIDReaderCardDriver extends DriverItem {
 				for (int i = 0; i <= e.size() - 1; i++) {
 					entity = (Entity) e.get(i);
 					if (entity instanceof EntityPlayerMP) {
+						found = true;
 						EntityPlayer em = (EntityPlayer) entity;
 						NonNullList<ItemStack> playerInventory = em.inventory.mainInventory;
 						int size = playerInventory.size();
@@ -180,6 +181,7 @@ public class RFIDReaderCardDriver extends DriverItem {
 					}
 					NBTTagCompound tag = entity.getEntityData().getCompoundTag("rfidData");
 					if (tag.hasKey("data")) {
+						found = true;
 						String localUUID;
 						if (!OpenSecurity.ignoreUUIDs) {
 							localUUID = tag.getString("uuid");
