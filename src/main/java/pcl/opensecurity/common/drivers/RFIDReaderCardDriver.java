@@ -15,6 +15,7 @@ import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.prefab.DriverItem;
 import li.cil.oc.common.inventory.Inventory;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.item.EntityMinecartContainer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -109,12 +110,14 @@ public class RFIDReaderCardDriver extends DriverItem {
 			Entity entity;
 			HashMap<Integer, HashMap<String, Object>> output = new HashMap<Integer, HashMap<String, Object>>();
 			int index = 1;
-			List e = container.world().getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(container.xPosition(), container.yPosition(), container.zPosition() + 1, container.xPosition() + 1, container.yPosition() + 1, container.zPosition()).expand(range, range, range));
+			
+			//.expand( didn't seem to work so well, I changed this to .grow( to match the EntityDetector which seems to work more reliably
+			List e = container.world().getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(container.xPosition(), container.yPosition(), container.zPosition() + 1, container.xPosition() + 1, container.yPosition() + 1, container.zPosition()).grow(range));
+			
 			if (!e.isEmpty()) {
 				for (int i = 0; i <= e.size() - 1; i++) {
 					entity = (Entity) e.get(i);
 					if (entity instanceof EntityPlayerMP) {
-						found = true;
 						EntityPlayer em = (EntityPlayer) entity;
 						NonNullList<ItemStack> playerInventory = em.inventory.mainInventory;
 						int size = playerInventory.size();
@@ -147,10 +150,36 @@ public class RFIDReaderCardDriver extends DriverItem {
 								output.put(index++, info(entity, st.getTagCompound().getString("data"), localUUID, st.getTagCompound().getBoolean("locked")));
 							}
 						}
+					//Allows the reader to scan inside any minecart-chests nearby
+					} else if (entity instanceof EntityMinecartContainer) {
+						found = true;
+						EntityMinecartContainer em = (EntityMinecartContainer) entity;
+						
+						/*===========
+						This should be the full size of a Cart-Chest (27 slots)
+						For some reason the game starts throwing exceptions if you search beyond 15~ slots or so
+						
+						I originally was using this value at 1 and simply placing my RFID card in the first slot of the chests
+						but I tested a few higher values and searching the first 10 slots seems stable. Better than nothing!
+						
+						If anyone knows any fixes please feel free.
+						============*/
+						int size = 10;
+						for (int k = 0; k < size; k++) {
+							ItemStack st = em.getStackInSlot(k);//.get(k);
+							if (st != null && st.getItem() instanceof ItemRFIDCard && st.getTagCompound() != null && st.getTagCompound().hasKey("data")) {
+								String localUUID;
+								if (!OpenSecurity.ignoreUUIDs) {
+									localUUID = st.getTagCompound().getString("uuid");
+								} else {
+									localUUID = "-1";
+								}
+								output.put(index++, info(entity, st.getTagCompound().getString("data"), localUUID, st.getTagCompound().getBoolean("locked")));
+							}
+						}
 					}
 					NBTTagCompound tag = entity.getEntityData().getCompoundTag("rfidData");
 					if (tag.hasKey("data")) {
-						found = true;
 						String localUUID;
 						if (!OpenSecurity.ignoreUUIDs) {
 							localUUID = tag.getString("uuid");
